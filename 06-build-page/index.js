@@ -32,7 +32,17 @@ function mergeHtmlComponents(componentsFolderPath) {
 
 async function mergeStyles(folderPath) {
   try {
-    const files = await readdir(folderPath, {withFileTypes: true});
+    let files = await readdir(folderPath, {withFileTypes: true});
+    files = files.sort((a, b) => {
+      if (a.name < b.name) {
+        return -1;
+      }
+
+      if (a.name > b.name) {
+        return 1;
+      }
+      return 0;
+    }).reverse();
 
     for (const file of files) {
       if (file.isFile() && path.extname(file.name) === '.css') {
