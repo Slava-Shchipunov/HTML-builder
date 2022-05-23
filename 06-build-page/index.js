@@ -5,29 +5,33 @@ const { readdir } = require('fs/promises');
 const fs = require('fs');
 const fsPromises = fs.promises;
 
-function mergeHtmlComponents(componentsFolderPath) {
-  let streem = fs.createReadStream(path.resolve(__dirname, 'project-dist/index.html'));
-  streem.on('data', (dataIndexHtml) => {
-    fs.readdir(componentsFolderPath, {withFileTypes: true}, (error, files) => {
-      if (error) {
-        console.error(error.message);
-        return;
-      }
-    
-      for (const file of files) {
-        if (file.isFile() && path.extname(file.name) === '.html') {
-          let streem = fs.createReadStream(path.resolve(componentsFolderPath + '/' + file.name));
-    
-          streem.on('data', (data) => {
-            const re = new RegExp('{{' + file.name.split('.')[0] + '}}', 'g');
-            dataIndexHtml = dataIndexHtml.toString().replace(re, data);
-            let streemWrite = fs.createWriteStream(path.resolve(__dirname, 'project-dist/index.html'));
-            streemWrite.write(dataIndexHtml);
-          });
+async function mergeHtmlComponents(componentsFolderPath) {
+  try {
+    let streem = fs.createReadStream(path.resolve(__dirname, 'project-dist/index.html'));
+    streem.on('data', (dataIndexHtml) => {
+      fs.readdir(componentsFolderPath, {withFileTypes: true}, (error, files) => {
+        if (error) {
+          console.error(error.message);
+          return;
         }
-      }
+      
+        for (const file of files) {
+          if (file.isFile() && path.extname(file.name) === '.html') {
+            let streem = fs.createReadStream(path.resolve(componentsFolderPath + '/' + file.name));
+      
+            streem.on('data', (data) => {
+              const re = new RegExp('{{' + file.name.split('.')[0] + '}}', 'g');
+              dataIndexHtml = dataIndexHtml.toString().replace(re, data);
+              let streemWrite = fs.createWriteStream(path.resolve(__dirname, 'project-dist/index.html'));
+              streemWrite.write(dataIndexHtml);
+            });
+          }
+        }
+      });
     });
-  });
+  } catch (error) {
+    console.error(error.message);
+  }
 }
 
 async function mergeStyles(folderPath) {
@@ -79,19 +83,33 @@ async function copyDir(folderPath) {
   }
 }
 
-fs.rm(path.resolve(__dirname, 'project-dist'), {recursive: true, force: true}, (error) => {
-  if (error) {
-    console.error(error.message);
-    return;
-  }
+function buildPage(dirPath) {
+  fs.rm(dirPath, {recursive: true, force: true, maxRetries: 100}, (error) => {
+    if (error) {
+      console.error(error.message);
+      return;
+    }
+    
+    fs.mkdir(dirPath, {recursive: true}, (error) => {
+      if (error) {
+        console.error(error.message);
+        return;
+      }
+
+      fs.copyFile(path.resolve(__dirname, 'template.html'), path.resolve(__dirname, 'project-dist/index.html'), (error) => {
+        if (error) {
+          console.error(error.message);
+          return;
+        }
+      
+        mergeHtmlComponents(path.resolve(__dirname, 'components'));
+      });
   
-  fsPromises.mkdir(path.resolve(__dirname, 'project-dist'), {recursive: true});
-
-  fsPromises.copyFile(path.resolve(__dirname, 'template.html'), path.resolve(__dirname, 'project-dist/index.html'));
+      mergeStyles(path.resolve(__dirname, 'styles'));
   
-  mergeStyles(path.resolve(__dirname, 'styles'));
+      copyDir(path.resolve(__dirname, 'assets'));
+    });
+  });
+}
 
-  copyDir(path.resolve(__dirname, 'assets'));
-
-  mergeHtmlComponents(path.resolve(__dirname, 'components'));
-});
+buildPage(path.resolve(__dirname, 'project-dist'));
