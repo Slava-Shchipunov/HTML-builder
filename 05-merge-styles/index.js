@@ -13,8 +13,8 @@ async function mergeStyles(folderPath) {
       if (file.isFile() && path.extname(file.name) === '.css') {
         let streem = fs.createReadStream(path.resolve(__dirname, 'styles/' + file.name));
 
-        streem.on('data', (data) => {
-          fsPromises.appendFile(path.resolve(__dirname, 'project-dist/' + 'bundle.css'), data + '\n');
+        streem.on('data', async (data) => {
+          await fsPromises.appendFile(path.resolve(__dirname, 'project-dist/' + 'bundle.css'), data + '\n');
         });
       }
     }
