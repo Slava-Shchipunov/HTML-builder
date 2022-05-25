@@ -1,35 +1,35 @@
 const path = require('path');
 
-const { readdir } = require('fs/promises');
+const { readdir, readFile } = require('fs/promises');
 
 const fs = require('fs');
 const fsPromises = fs.promises;
 
 async function mergeHtmlComponents(componentsFolderPath) {
   try {
-    let streem = fs.createReadStream(path.resolve(__dirname, 'project-dist/index.html'));
-    streem.on('data', (dataIndexHtml) => {
-      fs.readdir(componentsFolderPath, {withFileTypes: true}, (error, files) => {
-        if (error) {
-          console.error(error.message);
-          return;
-        }
-      
-        for (const file of files) {
-          if (file.isFile() && path.extname(file.name) === '.html') {
-            let streem = fs.createReadStream(path.resolve(componentsFolderPath + '/' + file.name));
-      
-            streem.on('data', (data) => {
-              const re = new RegExp('{{' + file.name.split('.')[0] + '}}', 'g');
-              dataIndexHtml = dataIndexHtml.toString().replace(re, data);
-              let streemWrite = fs.createWriteStream(path.resolve(__dirname, 'project-dist/index.html'));
-              streemWrite.write(dataIndexHtml);
-            });
-          }
-        }
-      });
+    let streemRead = fs.createReadStream(path.join(__dirname, 'template.html'));
+    let steamWrite = fs.createWriteStream(path.join(__dirname, 'project-dist', 'index.html'));
+
+    let template = '';
+
+    streemRead.on('data', (dataHtml) => {
+      template += dataHtml;
     });
-  } catch (error) {
+
+    streemRead.on('end', async () => {
+      const files = await readdir(componentsFolderPath, {withFileTypes: true});
+
+      for (const file of files) {
+        if (file.isFile() && path.extname(file.name) === '.html') {
+          const htmlData = await readFile(path.join(componentsFolderPath, file.name));
+          const re = new RegExp('{{' + file.name.split('.')[0] + '}}', 'g');
+          template = template.replace(re, htmlData);
+        }
+      }
+      steamWrite.write(template);
+    });
+  }
+  catch (error) {
     console.error(error.message);
   }
 }
@@ -39,21 +39,20 @@ async function mergeStyles(folderPath) {
     let files = await readdir(folderPath, {withFileTypes: true});
     files = files.sort((a, b) => {
       if (a.name < b.name) {
-        return -1;
-      }
-
-      if (a.name > b.name) {
         return 1;
       }
+      if (a.name > b.name) {
+        return -1;
+      }
       return 0;
-    }).reverse();
+    });
 
     for (const file of files) {
       if (file.isFile() && path.extname(file.name) === '.css') {
-        let streem = fs.createReadStream(path.resolve(__dirname, 'styles/' + file.name));
+        let streem = fs.createReadStream(path.join(__dirname, 'styles', file.name));
 
         streem.on('data', (data) => {
-          fsPromises.appendFile(path.resolve(__dirname, 'project-dist/' + 'style.css'), data + '\n');
+          fsPromises.appendFile(path.join(__dirname, 'project-dist', 'style.css'), data + '\n');
         });
       }
     }
@@ -65,17 +64,18 @@ async function mergeStyles(folderPath) {
 async function copyDir(folderPath) {
   try {
     const files = await readdir(folderPath, {withFileTypes: true});
-    const dirCopyPath = folderPath.split('assets').join('project-dist/assets');
+    let dirCopyPath = folderPath.split('assets');
+    dirCopyPath = path.join(dirCopyPath[0], 'project-dist', 'assets', dirCopyPath[1]);
 
-    fsPromises.mkdir(path.resolve(dirCopyPath), {recursive: true});
+    fsPromises.mkdir(dirCopyPath, {recursive: true});
 
     for (const file of files) {
       if (file.isFile()) {
-        const filePath = path.resolve(folderPath + '/' + file.name);
-        const fileCopyPath = path.resolve(dirCopyPath + '/' + file.name);
+        const filePath = path.join(folderPath, file.name);
+        const fileCopyPath = path.join(dirCopyPath, file.name);
         fsPromises.copyFile(filePath, fileCopyPath);
       } else if (file.isDirectory()) {
-        copyDir(path.resolve(folderPath + '/' + file.name));
+        copyDir(path.join(folderPath, file.name));
       }
     }
   } catch (error) {
@@ -96,20 +96,13 @@ function buildPage(dirPath) {
         return;
       }
 
-      fs.copyFile(path.resolve(__dirname, 'template.html'), path.resolve(__dirname, 'project-dist/index.html'), (error) => {
-        if (error) {
-          console.error(error.message);
-          return;
-        }
-      
-        mergeHtmlComponents(path.resolve(__dirname, 'components'));
-      });
+      mergeHtmlComponents(path.join(__dirname, 'components'));
   
-      mergeStyles(path.resolve(__dirname, 'styles'));
+      mergeStyles(path.join(__dirname, 'styles'));
   
-      copyDir(path.resolve(__dirname, 'assets'));
+      copyDir(path.join(__dirname, 'assets'));
     });
   });
 }
 
-buildPage(path.resolve(__dirname, 'project-dist'));
+buildPage(path.join(__dirname, 'project-dist'));
