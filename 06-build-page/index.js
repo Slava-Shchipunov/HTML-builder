@@ -51,8 +51,8 @@ async function mergeStyles(folderPath) {
       if (file.isFile() && path.extname(file.name) === '.css') {
         let streem = fs.createReadStream(path.join(__dirname, 'styles', file.name));
 
-        streem.on('data', (data) => {
-          fsPromises.appendFile(path.join(__dirname, 'project-dist', 'style.css'), data + '\n');
+        streem.on('data', async (data) => {
+          await fsPromises.appendFile(path.join(__dirname, 'project-dist', 'style.css'), data + '\n');
         });
       }
     }
@@ -67,13 +67,13 @@ async function copyDir(folderPath) {
     let dirCopyPath = folderPath.split('assets');
     dirCopyPath = path.join(dirCopyPath[0], 'project-dist', 'assets', dirCopyPath[1]);
 
-    fsPromises.mkdir(dirCopyPath, {recursive: true});
+    await fsPromises.mkdir(dirCopyPath, {recursive: true});
 
     for (const file of files) {
       if (file.isFile()) {
         const filePath = path.join(folderPath, file.name);
         const fileCopyPath = path.join(dirCopyPath, file.name);
-        fsPromises.copyFile(filePath, fileCopyPath);
+        await fsPromises.copyFile(filePath, fileCopyPath);
       } else if (file.isDirectory()) {
         copyDir(path.join(folderPath, file.name));
       }
