@@ -13,7 +13,7 @@ async function copyDir(folderPath) {
       if (file.isFile()) {
         const filePath = path.resolve(__dirname, 'files/' + file.name);
         const fileCopyPath = path.resolve(__dirname, 'files-copy/' + file.name);
-        fsPromises.copyFile(filePath, fileCopyPath);
+        await fsPromises.copyFile(filePath, fileCopyPath);
       }
     }
   } catch (error) {
